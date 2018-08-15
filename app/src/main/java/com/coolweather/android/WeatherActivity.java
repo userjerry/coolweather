@@ -1,5 +1,6 @@
 package com.coolweather.android;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.coolweather.android.gson.Forecast;
 import com.coolweather.android.gson.Weather;
+import com.coolweather.android.service.AutoUpdateService;
 import com.coolweather.android.util.HttpUtil;
 import com.coolweather.android.util.Utility;
 
@@ -92,37 +94,20 @@ public class WeatherActivity extends AppCompatActivity {
         }
         if(weatherString != null) {
             //有缓存时直接解析天气数据
-            Weather weather = Utility.hangleWeatherRespnse(weatherString);
-            String weatherId = weather.basic.weatherId;
-            String weatherId1 = getIntent().getStringExtra("weather_id");
-            //如果缓存的城市和现有的城市不一样，重新做
-            if(weatherId1 != null) {
-                if(weatherId.equals(weatherId1)) {
-                    //添加刷新时的weatherid
-                    mWeatherId = weatherId;
-                    showWeatherInfo(weather);
-                } else {
-                    mWeatherId = weatherId1;
-                    weatherLayout.setVisibility(View.INVISIBLE);
-                    requestWeather(weatherId1);
-                }
-            } else {
-                mWeatherId = weatherId;
-                showWeatherInfo(weather);
-            }
-
-
+           Weather weather = Utility.hangleWeatherRespnse(weatherString);
+            mWeatherId = weather.basic.weatherId;
+            showWeatherInfo(weather);
         } else {
             //没有缓存时，去服务器查询天气
-            String weatherId = getIntent().getStringExtra("weather_id");
-            mWeatherId = weatherId;
+            mWeatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
-            requestWeather(weatherId);
+            requestWeather(mWeatherId);
         }
 
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+//                mWeatherId = getIntent().getStringExtra("weather_id");
                 requestWeather(mWeatherId);
             }
         });
@@ -139,6 +124,7 @@ public class WeatherActivity extends AppCompatActivity {
     根据天气id请求城市天气信息
      */
     public void requestWeather(String weatherId) {     //源代码加了final
+        mWeatherId = weatherId;
         String weatherUrl = "http://guolin.tech/api/weather?cityid=" +
                 weatherId + "&key=163fdf7e1fa345e38b999c61a9430dca";
         HttpUtil.sendOkHttpRequet(weatherUrl, new Callback() {
@@ -168,6 +154,7 @@ public class WeatherActivity extends AppCompatActivity {
                             editor.putString("weather",responseText);
                             editor.apply();
                             showWeatherInfo(weather);
+
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
@@ -218,6 +205,10 @@ public class WeatherActivity extends AppCompatActivity {
         sportText.setText(sport);
         carWashText.setText(carWash);
         weatherLayout.setVisibility(View.VISIBLE);
+
+        //后台运行，
+       Intent intent = new Intent(this, AutoUpdateService.class);
+       startService(intent);
 
     }
 
